@@ -12,7 +12,7 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0-nanoserver-1809 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["lan-app-server/lan-app-server.csproj", "lan-app-server/"]
-RUN dotnet restore "./lan-app-server/lan-app-server.csproj"
+RUN dotnet restore "lan-app-server/lan-app-server.csproj"
 COPY . .
 WORKDIR "/src/lan-app-server"
 RUN dotnet build "./lan-app-server.csproj" -c %BUILD_CONFIGURATION% -o /app/build
