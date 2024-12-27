@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>lan_app_server</RootNamespace>
     <UserSecretsId>579282c8-b194-4bc1-bd11-567e8bbd20d3</UserSecretsId>
-    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <DockerDefaultTargetOS>Windows</DockerDefaultTargetOS>
   </PropertyGroup>
 
   <ItemGroup>
