@@ -26,8 +26,12 @@ namespace lan_app_server.Controllers
             if (HttpContext.WebSockets.IsWebSocketRequest)
             {
                 if (!_tokenValidator.ValidateToken(token, out var user_id))
+                {
+                    var ws = await HttpContext.WebSockets.AcceptWebSocketAsync();
+                    await ws.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Token invalid or expired", CancellationToken.None);
                     return;
-
+                }
+                    
                 var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
                 _webSocketConnectionManager.AddConnection(user_id, webSocket);
 

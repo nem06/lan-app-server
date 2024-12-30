@@ -1,4 +1,5 @@
 ﻿using Microsoft.IdentityModel.Tokens;
+using Newtonsoft.Json.Linq;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -29,7 +30,7 @@ public class JwtTokenHandler : ITokenManager
                     new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()), // Unique identifier for the token
                     new Claim("user_id", user_id) // Custom claim
                 }),
-            //Expires = DateTime.UtcNow.AddHours(1),
+            Expires = DateTime.UtcNow.AddDays(1),
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
         };
 
@@ -60,7 +61,11 @@ public class JwtTokenHandler : ITokenManager
             user_id = int.Parse(uid);
             return true;
         }
-        catch
+        //catch(SecurityTokenExpiredException ex)
+        //{
+        //    throw new SecurityTokenExpiredException();
+        //}
+        catch(Exception ex)
         {
             return false;
         }
