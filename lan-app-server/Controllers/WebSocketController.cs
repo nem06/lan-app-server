@@ -1,5 +1,6 @@
 ﻿using lan_app_server.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
@@ -24,19 +25,19 @@ namespace lan_app_server.Controllers
         {
             if (HttpContext.WebSockets.IsWebSocketRequest)
             {
-                if (!_tokenValidator.ValidateToken(token, out var username))
+                if (!_tokenValidator.ValidateToken(token, out var user_id))
                     return;
 
                 var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
-                _webSocketConnectionManager.AddConnection(username, webSocket);
+                _webSocketConnectionManager.AddConnection(user_id, webSocket);
 
-                var payLoad = JsonSerializer.Serialize(new
-                {
-                    Type = "BroadcastMessage",
-                    Message = username + " joined!"
-                });
-                await _webSocketConnectionManager.BroadcastMessage(payLoad);
-                await ReceiveMessage(webSocket, username);
+                //var payLoad = JsonSerializer.Serialize(new
+                //{
+                //    Type = "BroadcastMessage",
+                //    Message = username + " joined!"
+                //});
+                //await _webSocketConnectionManager.BroadcastMessage(payLoad);
+                await ReceiveMessage(webSocket, user_id);
             }
             else
             {
@@ -44,50 +45,78 @@ namespace lan_app_server.Controllers
             }
         }
 
-        private async Task ReceiveMessage(WebSocket webSocket, string username)
+        private async Task ReceiveMessage(WebSocket webSocket, int user_id)
         {
             var buffer = new byte[1024 * 4];
             WebSocketReceiveResult result;
 
-            while (webSocket.State == WebSocketState.Open)
+            try
             {
-                result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-
-                if (result.MessageType == WebSocketMessageType.Text)
+                while (webSocket.State == WebSocketState.Open)
                 {
-                    var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                    // Handle the incoming message here (e.g., broadcast or respond)
-                    SocketPayload msg = JsonSerializer.Deserialize<SocketPayload>(message);
-                    if (msg.Type == "OneToOne")
+                    result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+
+                    if (result.MessageType == WebSocketMessageType.Text)
                     {
-                        var payLoad = JsonSerializer.Serialize(new
+                        var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                        // Handle the incoming message here (e.g., broadcast or respond)
+                        SocketPayload msg = JsonSerializer.Deserialize<SocketPayload>(message);
+                        if (msg.Type == "LivePing")
+                        { }
+                        else if (msg.Type == "OneToOne")
                         {
-                            Type = "PersonalMessage",
-                            Message = username + "(P) - " + msg.Message
-                        });
-                        await _webSocketConnectionManager.SendMessageToUser(msg.ToUser, payLoad);
-                    }
-                    else if (msg.Type == "Broadcast")
-                    {
-                        var payLoad = JsonSerializer.Serialize(new
+                            var payLoad = JsonSerializer.Serialize(new
+                            {
+                                Type = "OneToOne",
+                                FromUser = user_id,
+                                Message = msg.Message
+                            });
+                            if(user_id != msg.ToUser)
+                                await _webSocketConnectionManager.SendMessageToUser(msg.ToUser, payLoad);
+                            var payLoadSelf = JsonSerializer.Serialize(new
+                            {
+                                Type = "SelfCopy",
+                                ToUser = msg.ToUser,
+                                Message = msg.Message
+                            });
+                            await _webSocketConnectionManager.SendMessageToSelf(user_id, payLoadSelf, webSocket); // if multiple login
+                        }
+                        else if (msg.Type == "Broadcast")
                         {
-                            Type = "BroadcastMessage",
-                            Message = username + " - " + msg.Message
-                        });
-                        await _webSocketConnectionManager.BroadcastMessage(payLoad);
+                            var payLoad = JsonSerializer.Serialize(new
+                            {
+                                Type = "BroadcastMessage",
+                                Message = user_id + " - " + msg.Message
+                            });
+                            await _webSocketConnectionManager.BroadcastMessage(payLoad);
+                        }
+
                     }
-                    
                 }
             }
-
-            var payLoad1 = JsonSerializer.Serialize(new
+            catch (WebSocketException ex)
+            { }
+            catch (Exception ex)
             {
-                Type = "BroadcastMessage",
-                Message = username + " left!"
-            });
-            await _webSocketConnectionManager.BroadcastMessage(payLoad1);
-            _webSocketConnectionManager.RemoveConnection(username, webSocket);
-            await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+
+                throw;
+            }
+            finally
+            {
+                //var payLoad1 = JsonSerializer.Serialize(new
+                //{
+                //    Type = "BroadcastMessage",
+                //    Message = user_id + " left!"
+                //});
+                //await _webSocketConnectionManager.BroadcastMessage(payLoad1);
+                _webSocketConnectionManager.RemoveConnection(user_id, webSocket);
+                if(webSocket.State == WebSocketState.Open)
+                {
+                    await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+
+                }
+            }
+            
         }
 
     }

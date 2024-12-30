@@ -13,6 +13,7 @@ ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 
 COPY ["lan-app-server/lan-app-server.csproj", "lan-app-server/"]
+CONTAINERUSER Administrator
 RUN dotnet restore "lan-app-server/lan-app-server.csproj"
 COPY . .
 WORKDIR "/src/lan-app-server"

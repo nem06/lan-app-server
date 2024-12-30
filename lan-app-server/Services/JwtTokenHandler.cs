@@ -6,7 +6,7 @@ using System.Text;
 public interface ITokenManager
 {
     string GenerateToken(string username);
-    bool ValidateToken(string token, out string username);
+    bool ValidateToken(string token, out int user_id);
 }
 
 public class JwtTokenHandler : ITokenManager
@@ -18,18 +18,18 @@ public class JwtTokenHandler : ITokenManager
         _key = "YourSuperSecretKey12345!@#20241211";
     }
 
-    public string GenerateToken(string username)
+    public string GenerateToken(string user_id)
     {
         var tokenHandler = new JwtSecurityTokenHandler();
         var key = Encoding.ASCII.GetBytes(_key);
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(new[] {
-                    new Claim(JwtRegisteredClaimNames.Sub, username), // Standard subject claim
+                    new Claim(JwtRegisteredClaimNames.Sub, user_id), // Standard subject claim
                     new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()), // Unique identifier for the token
-                    new Claim("username", username) // Custom claim
+                    new Claim("user_id", user_id) // Custom claim
                 }),
-            Expires = DateTime.UtcNow.AddHours(1),
+            //Expires = DateTime.UtcNow.AddHours(1),
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
         };
 
@@ -37,9 +37,9 @@ public class JwtTokenHandler : ITokenManager
         return tokenHandler.WriteToken(token);
     }
 
-    public bool ValidateToken(string token, out string username)
+    public bool ValidateToken(string token, out int user_id)
     {
-        username = null;
+        user_id = 0;
 
         try
         {
@@ -56,7 +56,8 @@ public class JwtTokenHandler : ITokenManager
                 ClockSkew = TimeSpan.Zero // No tolerance for token expiration
             }, out var validatedToken);
 
-            username = claimsPrincipal.FindFirst("username")?.Value;
+            string uid = claimsPrincipal.FindFirst("user_id")?.Value;
+            user_id = int.Parse(uid);
             return true;
         }
         catch

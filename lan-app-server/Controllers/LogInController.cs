@@ -1,5 +1,7 @@
 ﻿using lan_app_server.Models;
+using lan_app_server.Services;
 using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json;
 
 namespace lan_app_server.Controllers
 {
@@ -18,8 +20,16 @@ namespace lan_app_server.Controllers
         //[ValidateAntiForgeryToken]
         public ActionResult LogIn([FromBody] User user)
         {
-            var token = _tokenManager.GenerateToken(user.name);
-            return Ok(new { success = true, token });
+            string result = PostgreSQLService.GetJsonFromPostGre("CheckLogin", JsonConvert.SerializeObject(user));
+
+            if(result == null)
+            {
+                return BadRequest("Invalid login attempt. Please check your credentials.");
+            }
+
+            User loggedinUser = JsonConvert.DeserializeObject<User>(result);
+            var token = _tokenManager.GenerateToken(loggedinUser.user_id.ToString());
+            return Ok(new { success = true, token,  loggedinUser.user_id, loggedinUser.user_name, loggedinUser.first_name, loggedinUser.last_name, loggedinUser.about});
         }
     }
 }
